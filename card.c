@@ -5,8 +5,9 @@ typedef struct Cards {
 
     double width = 12;
     double height = 12;
-    int isFlipped = 0;
+    bool isFlipped = false;
     int value;
+    bool isMatched = false;
 
 } Card;
 
@@ -14,9 +15,11 @@ typedef struct Cards {
 typedef struct MemoryGame {
 
     Card cards[NUMROWS][NUMCOLS];
-    bool halfFlipped = false;
+    bool onePressed = false;
     int numFinished = 0;
+    bool stateChanged = false;
     const int numPairs = NUMROWS * NUMCOLS;
+    int level;
     int highscore;
 
 } MemGame;
