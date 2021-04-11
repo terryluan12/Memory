@@ -114,7 +114,6 @@ int main(void) {
 	/* Declare volatile pointers to I/O registers (volatile means that IO load
 	and store instructions will be used to access these pointer locations,
 	instead of regular memory loads and stores) */
-	
 	volatile int * PS2_ptr = (int *)PS2_BASE;
 	*(PS2_ptr) = 0xFF; // reset
 	
@@ -140,7 +139,7 @@ int main(void) {
 	short int y_bot[N];
 	short int y_center[N];
 	
-	short int graphics[6] = {0, 1, 2, 3, 4, 5, 6, 7};  // this can be used to randomize the order of card_graphic below
+	//short int graphics[6] = {0, 1, 2, 3, 4, 5};
 	short int card_graphic[16] = {0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 6, 7, 6, 7};
 	
 	
@@ -152,7 +151,7 @@ int main(void) {
 		for(int j = 0; j < NUMROWS; j++){
 	    	// drawCards(&game);
 			draw_line(x1, y1, x1+x_width, y1, CYAN);   			// top line
-			draw_line(x1, y1+y_height, x1+x_width, y1+y_height, CYAN);   	// bot line
+			draw_line(x1, y1+y_height, x1+x_width, y1+y_height, CYAN);  	// bot line
 			draw_line(x1, y1, x1, y1+y_height, CYAN);       		// left line
 			draw_line(x1+x_width, y1, x1+x_width, y1+y_height, CYAN);   	// right line
 			
@@ -187,9 +186,9 @@ int main(void) {
 	*/
 	
 	while (gameOver != true) {
-		int i = 30;
-		keyboard(&pressedKey); 			// gets key press and cheacks for which one was pressed and acts accordingly
-			if (pressedKey == 0x45){ 	// check if key is 0
+		int i = 40;
+		keyboard(&pressedKey);
+			if (pressedKey == 0x45){ 		// check if key is 0
 				i = 0;
 			}
 			else if (pressedKey == 0x16){	// check if key is 1
@@ -237,6 +236,7 @@ int main(void) {
 			else if (pressedKey == 0x2B){	// check if key is F
 				i = 15;			
 			}
+			draw_front(i, x_center[i], y_center[i], x_left[i], x_right[i], y_top[i], y_bot[i], card_graphic[i], 1);
 			draw_graphic(i, x_center[i], y_center[i], x_left[i], x_right[i], y_top[i], y_bot[i], card_graphic[i], clear);
 	}
 		
@@ -256,7 +256,7 @@ void draw_graphic (int card, int x_center, int y_center, int x_left, int x_right
 			line_color = MAGENTA;
 		}
 		draw_line(x_left+10, y_bot-10, x_right-10, y_bot-10, line_color);  	// bot line
-		draw_line(x_left+10, y_bot-10, x_center, y_top+10, line_color);  	// bot line
+		draw_line(x_left+10, y_bot-10, x_center, y_top+10, line_color);   	// bot line
 		draw_line(x_right-10, y_bot-10, x_center, y_top+10, line_color);   	// left line
 	}
 	
