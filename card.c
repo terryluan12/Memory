@@ -3,23 +3,23 @@
 
 typedef struct Cards {
 
-    double width = 12;
-    double height = 12;
-    bool isFlipped = false;
+    int row, col;
+    int y_top;
+    int x_left;
+    bool isFlipped;
     int value;
-    bool isMatched = false;
+    bool isMatched;
 
 } Card;
 
 
 typedef struct MemoryGame {
 
-    Card cards[NUMROWS][NUMCOLS];
-    int pressedCard = NULL;
-    int numFinished = 0;
-    bool stateChanged = false;
-    const int numPairs = NUMROWS * NUMCOLS;
-    bool gameOver = false;
+    Card cards[NUM_CARDS];
+    int pressedCard;
+    int numFinished;
+    bool stateChanged;
+    bool gameOver;
     int level;
     int highscore;
 

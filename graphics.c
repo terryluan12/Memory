@@ -81,32 +81,40 @@
 #define BOX_LEN 2
 #define NUM_BOXES 8
 
-#define FALSE 0
-#define TRUE 1
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
 
-#define NUMROWS 4
-#define NUMCOLS	4
+#define NUM_ROWS 4
+#define NUM_COLS	4
+#define NUM_CARDS 16
 
-// #define bool int
-#define true 1
-#define false 0	
 		
+// insert card.c here
+
+
 volatile int pixel_buffer_start; // global variable
 void clear_screen();
 void draw_line(int x0, int x1, int y0, int y1, short int colour);
 void swap(int* x, int* y);
 void plot_pixel(int x, int y, short int line_color);
 void wait();
-void draw_graphic (int card, int x_center, int y_center, int x_left, int x_right, int y_top, int y_bot,int graphic, int clear);
-void draw_front (int card, int x_center, int y_center, int x_left, int x_right, int y_top, int y_bot,int graphic, int clear);
+void draw_graphic (int graphic, int x_left, int y_top, int clear);
+void draw_front (int card, int x_left,int y_top, int clear);
 void keyboard(unsigned char *key);
 void getKey(int keyID, int *keyPressed);
-	
+bool cardsMatch(MemGame *game, int secondCardId);
+void drawCards(MemGame *game);
+void initializeCards(MemGame *game);
+void wait_for_vsync();
+
+
+
+int g_width = (RESOLUTION_X-40-(NUM_COLS*20))/NUM_COLS;
+int g_height = (RESOLUTION_Y-20-(NUM_ROWS*10))/NUM_ROWS;
+
 int main(void) {
     volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
     /* Read location of the pixel buffer from the pixel buffer controller */
@@ -120,42 +128,35 @@ int main(void) {
 	
 	
 	unsigned char keyID = 0;
-	int clear = 0;
 	
 	clear_screen();
 	
-	int val = 0;
-	int N = NUMCOLS*NUMROWS;
-	int x1 = 20; 
-	int x2 = 20;
-	int y1 = 10;
-	int	y2 = 10;
 	
-	short int x_left[N];
-	short int x_right[N];
-	short int x_center[N];
 	
-	short int y_top[N];
-	short int y_bot[N];
-	short int y_center[N];
-	
-	//short int graphics[6] = {0, 1, 2, 3, 4, 5};
-	short int card_graphic[16] = {0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 6, 7, 6, 7};
 	
 
 	// initialize the game
     MemGame game;
+	initializeCards(&game);
+
+	game.pressedCard = -1;
+	
+    game.stateChanged = true;
+    game.gameOver = false;
+    game.level = 1;
+    game.highscore = 0;
+	game.numFinished = 0;
 
     while(1){
 	// if the game state has changed, then draw the game again on the screen
 	if(game.stateChanged){
 	    clear_screen();
-            for(int i = 0; i < NUMROWS; i++)
-				for(int j = 0; j < NUMCOLS; j++)
+            for(int i = 0; i < NUM_ROWS; i++)
+				for(int j = 0; j < NUM_COLS; j++)
 					drawCards(&game);
 
 	    game.stateChanged = false;
-            wait_for_vsync();
+		wait_for_vsync();
 	}
 
 	
@@ -164,72 +165,34 @@ int main(void) {
 	getKey(keyID, &cardFlipped);
 
 	// if the button is pressed
-		if(keyPressed != -1){
+		if(cardFlipped != -1){
 			// change the state of the game
 			game.stateChanged = true;
 				
 			// if one card is pressed already
-			if(game.pressedCard != NULL){
+			if(game.pressedCard != -1){
 			// see if the cards match. In the function
 			// it also updates the state of the cards and the game
-				bool isMatched = cardsMatch(game);
+				bool isMatched = cardsMatch(&game, cardFlipped);
 
-				if(isMatched){
-					game.numFinished++;
-					if(game.numFinished == game.numPairs){
+				if(isMatched && game.numFinished == NUM_CARDS){
 						game.gameOver = true;
-					}
 				}
 				// change state of the game
-				game.pressedCard = NULL;	
+				game.pressedCard = -1;	
 			}else{
 			// otherwise only one card is face up now.
 				game.pressedCard = cardFlipped;
 			}
         }
 		
-		draw_front(i, x_center[i], y_center[i], x_left[i], x_right[i], y_top[i], y_bot[i], card_graphic[i], 1);
-		draw_graphic(i, x_center[i], y_center[i], x_left[i], x_right[i], y_top[i], y_bot[i], card_graphic[i], clear);
-    }
-
-
-	
-	int x_width = (RESOLUTION_X-40-(NUMCOLS*20))/NUMCOLS;
-	int y_height = (RESOLUTION_Y-20-(NUMROWS*10))/NUMROWS;
-	int k =0;
-	
-	for(int i = 0; i < NUMCOLS; i++){
-		for(int j = 0; j < NUMROWS; j++){
-	    	// drawCards(&game);
-			draw_line(x1, y1, x1+x_width, y1, CYAN);   			// top line
-			draw_line(x1, y1+y_height, x1+x_width, y1+y_height, CYAN);  	// bot line
-			draw_line(x1, y1, x1, y1+y_height, CYAN);       		// left line
-			draw_line(x1+x_width, y1, x1+x_width, y1+y_height, CYAN);   	// right line
-			
-			y_center[k] = y1+(y_height/2);
-			y_top[k] = y1;
-			y_bot[k] = y1 + y_height;
-			
-			x_center[k] = x1+(x_width/2);
-			x_left[k] = x1;
-			x_right[k] = x1 + x_width;	
-			draw_front(k, x_center[k], y_center[k], x_left[k], x_right[k], y_top[k], y_bot[k], card_graphic[k], clear);
-			k=k+1;
-			
-			y1 = y1 + 10 + y_height;
-			y2 = y2 + 10 + y_height;
-	    }
-		x1 = x1 + 20 + x_width;
-		x2 = x2 + 20 + x_width;
-		y1 = 10;
-		y2 = 10;
     }
 	
 	// Check drawing - remove before submit
 	/*
 	k = 0;
-	for(int i = 0; i < NUMCOLS; i++){
-		for(int j = 0; j < NUMROWS; j++){
+	for(int i = 0; i < NUM_COLS; i++){
+		for(int j = 0; j < NUM_ROWS; j++){
 			draw_graphic(k, x_center[k], y_center[k], x_left[k], x_right[k], y_top[k], y_bot[k], card_graphic[k]);
 			k = k+1;
 		}
@@ -240,9 +203,75 @@ int main(void) {
 	return 0;
 }
 
+bool cardsMatch(MemGame *game, int secondCardId){
 
-void draw_graphic (int card, int x_center, int y_center, int x_left, int x_right, int y_top, int y_bot, int graphic, int clear){
+	Card firstCard, secondCard;
+	firstCard = game->cards[game->pressedCard];
+	secondCard = game->cards[secondCardId];
+	bool matched = firstCard.value == secondCard.value;
+	if(matched){
+		secondCard.isFlipped = true;
+		firstCard.isMatched = true;
+		secondCard.isMatched = true;
+		game->numFinished++;
+	}else{
+		firstCard.isMatched = false;
+	}
+	return matched;
+}
+
+void initializeCards(MemGame *game){
+	
+	
+	//short int graphics[6] = {0, 1, 2, 3, 4, 5};
+	short int card_graphic[16] = {0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 6, 7, 6, 7};
+
+	int x1 = 20;
+	int y1 = 10;
+	
+	for(int i = 0; i < NUM_ROWS; i++){
+		for(int j = 0; j < NUM_COLS; j++){
+			game->cards[NUM_ROWS * i + j].row = i;
+			game->cards[NUM_ROWS * i + j].col = j;
+			y1 = y1 + 10 + g_height;
+		}
+		
+		x1 = x1 + 20 + g_width;
+		y1 = 10;
+	}
+	for(int i = 0; i < NUM_CARDS; i++){
+		game->cards[i].y_top = 10 + 10 * game->cards[i].row + g_height * game->cards[i].row;
+		game->cards[i].x_left = 20 + 20 * game->cards[i].col + g_width * game->cards[i].col;
+		game->cards[i].value = card_graphic[i];
+		game->cards[i].isFlipped = false;
+		game->cards[i].isMatched = false;
+	}
+}
+void drawCards(MemGame *game){
+
+
+	for(int i = 0; i < NUM_CARDS; i++){
+		draw_line(game->cards[i].x_left, game->cards[i].y_top, game->cards[i].x_left+g_width, game->cards[i].y_top, CYAN);   			// top line
+		draw_line(game->cards[i].x_left, game->cards[i].y_top+g_height, game->cards[i].x_left+g_width, game->cards[i].y_top+g_height, CYAN);  	// bot line
+		draw_line(game->cards[i].x_left, game->cards[i].y_top, game->cards[i].x_left, game->cards[i].y_top+g_height, CYAN);       		// left line
+		draw_line(game->cards[i].x_left+g_width, game->cards[i].y_top, game->cards[i].x_left+g_width, game->cards[i].y_top+g_height, CYAN);   	// right line
+
+		if(game->cards[i].isFlipped){
+			draw_graphic(game->cards[i].value, game->cards[i].x_left, game->cards[i].y_top, 0);
+		}else{
+			draw_front(i, game->cards[i].x_left, game->cards[i].y_top, 0);
+		}
+	}
+			
+}
+
+void draw_graphic (int graphic, int x_left, int y_top, int clear){
 	short int line_color;
+	short int y_center = y_top + (g_height/2);
+	short int y_bot = y_top + g_height;
+	
+	short int x_center = x_left + (g_width/2);
+	short int x_right = x_left + g_width;	
 	
 	//graphic 1 - triangle
 	if(graphic == 0) {
@@ -359,8 +388,13 @@ void draw_graphic (int card, int x_center, int y_center, int x_left, int x_right
 	return;
 }
 
-void draw_front (int card, int x_center, int y_center, int x_left, int x_right, int y_top, int y_bot,int graphic, int clear){
+void draw_front (int card, int x_left,int y_top, int clear){
 	short int line_color;
+	short int y_center = y_top + (g_height/2);
+	short int y_bot = y_top + g_height;
+	
+	short int x_center = x_left + (g_width/2);
+	short int x_right = x_left + g_width;	
 	
 	if (clear == 1) {
 		line_color = BLACK;
@@ -586,54 +620,64 @@ void keyboard(unsigned char *key) {
 void getKey(int keyID, int *keyPressed){
 	
 	if (keyID == 0x45){ 		// check if key is 0
-		keyPressed = 0;
+		*keyPressed = 0;
 	}
 	else if (keyID == 0x16){	// check if key is 1
-		keyPressed = 1;
+		*keyPressed = 1;
 	}
 	else if (keyID == 0x1E){	// check if key is 2
-		keyPressed = 2;
+		*keyPressed = 2;
 	}
 	else if (keyID == 0x26){	// check if key is 3
-		keyPressed = 3;			
+		*keyPressed = 3;			
 	}
 	else if (keyID == 0x25){	// check if key is 4
-		keyPressed = 4;			
+		*keyPressed = 4;			
 	}
 	else if (keyID == 0x2E){	// check if key is 5
-		keyPressed = 5;			
+		*keyPressed = 5;			
 	}
 	else if (keyID == 0x36){	// check if key is 6
-		keyPressed = 6;			
+		*keyPressed = 6;			
 	}
 	else if (keyID == 0x3D){	// check if key is 7
-		keyPressed = 7;			
+		*keyPressed = 7;			
 	}
 	else if (keyID == 0x3E){	// check if key is 8
-		keyPressed = 8;			
+		*keyPressed = 8;			
 	}
 	else if (keyID == 0x46){	// check if key is 9
-		keyPressed = 9;			
+		*keyPressed = 9;			
 	}
 	else if (keyID == 0x1c){	// check if key is A
-		keyPressed = 10;			
+		*keyPressed = 10;			
 	}
 	else if (keyID == 0x32){	// check if key is B
-		keyPressed = 11;			
+		*keyPressed = 11;			
 	}
 	else if (keyID == 0x21){	// check if key is C
-		keyPressed = 12;			
+		*keyPressed = 12;			
 	}
 	else if (keyID == 0x23){	// check if key is D
-		keyPressed = 13;			
+		*keyPressed = 13;			
 	}
 	else if (keyID == 0x24){	// check if key is E
-		keyPressed = 14;			
+		*keyPressed = 14;			
 	}
 	else if (keyID == 0x2B){	// check if key is F
-		keyPressed = 15;			
+		*keyPressed = 15;			
 	}
 	else{
-		keyPressed = -1;
+		*keyPressed = -1;
+	}
+}
+void wait_for_vsync(){
+	volatile int *front_buffer = (int *)PIXEL_BUF_CTRL_BASE;
+	// write a 1 to the front buffer
+	*front_buffer = 1;
+	// get the state of the switch and only continue when it is finished
+	int state = *(front_buffer + 3);
+	while((state & 0x1) != 0 ){
+		state = *(front_buffer + 3);
 	}
 }
