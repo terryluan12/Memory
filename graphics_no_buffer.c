@@ -83,10 +83,16 @@
 #include <string.h>
 #include <stdbool.h>
 
-#define NUM_ROWS 4
+/*
+#define NUM_ROWS 2
 #define NUM_COLS 4
-#define NUM_CARDS 16
+#define NUM_CARDS 8
+*/
 
+int NUM_ROWS;
+int NUM_COLS;
+int NUM_CARDS;
+	
 // insert card.c here
 typedef struct Cards {
 
@@ -105,7 +111,7 @@ typedef struct Cards {
 
 typedef struct MemoryGame {
 
-    Card cards[NUM_CARDS];
+    Card cards[16];
     int pressedCard;
     int numFinished;
     bool stateChanged;
@@ -133,8 +139,8 @@ void initializeCards(MemGame *game);
 void wait_for_vsync();
 
 unsigned char keyID = 0;
-int g_width = (RESOLUTION_X-40-(NUM_COLS*20))/NUM_COLS;
-int g_height = (RESOLUTION_Y-20-(NUM_ROWS*10))/NUM_ROWS;
+int g_width;
+int g_height;
 
 // these can help with logic but can be removed if not used
 int level = -1;
@@ -171,16 +177,51 @@ int main(void) {
 
 	// initialize the game
     MemGame game;
+	
+	bool choice = false;
+	// choose game level
+	while (choice == false) {
+		if (*KEY_ptr == 0b0001) { 		// press KEY[0] = easy
+        	game.level = easy;
+			NUM_ROWS = 2;
+			NUM_COLS = 4;
+			NUM_CARDS = NUM_ROWS*NUM_COLS;
+			choice = true;
+		}  
+		else if (*KEY_ptr == 0b0010) { 	// press KEY[1] = medium
+			game.level = medium;
+			NUM_ROWS = 3;
+			NUM_COLS = 4;
+			NUM_CARDS = NUM_ROWS*NUM_COLS;
+			choice = true;
+		} 
+		else if (*KEY_ptr == 0b0100){ 	// press KEY[2] = hard
+			game.level = hard;
+			NUM_ROWS = 4;
+			NUM_COLS = 4;
+			NUM_CARDS = NUM_ROWS*NUM_COLS;
+			choice = true;
+		}
+	}
+	
+	*KEY_ptr = 0xFF;	// reset KEY
+	
+	g_width = (RESOLUTION_X-40-(NUM_COLS*20))/NUM_COLS;
+	g_height = (RESOLUTION_Y-20-(NUM_ROWS*10))/NUM_ROWS;
+	
 	initializeCards(&game);
 
 	game.pressedCard = -1;
 	
     game.stateChanged = true;
     game.gameOver = false;
-    game.level = 1;
+   // game.level = 1;
     game.highscore = 0;
 	game.numFinished = 0;
-
+	
+	
+	
+	
     while(1){
 	// if the game state has changed, then draw the game again on the screen
 	if(game.stateChanged){
@@ -263,10 +304,10 @@ void initializeCards(MemGame *game){
 	int x1 = 20;
 	int y1 = 10;
 	
-	for(int i = 0; i < NUM_ROWS; i++){
-		for(int j = 0; j < NUM_COLS; j++){
-			game->cards[NUM_ROWS * i + j].row = i;
-			game->cards[NUM_ROWS * i + j].col = j;
+	for(int i = 0; i < NUM_COLS; i++){
+		for(int j = 0; j < NUM_ROWS; j++){
+			game->cards[NUM_ROWS * i + j].row = j;
+			game->cards[NUM_ROWS * i + j].col = i;
 			y1 = y1 + 10 + g_height;
 		}
 		
