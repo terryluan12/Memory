@@ -122,7 +122,8 @@ typedef struct MemoryGame {
 } MemGame;
 
 volatile int pixel_buffer_start; // global variable
-volatile int *KEY_ptr = (int *) 0xFF20005C; // key 
+volatile int *KEY_ptr = (int *) 0xFF20005C; // push buttons 
+volatile int * PS2_ptr = (int *)0xFF200100; // ps2 keyboard
 
 void clear_screen();
 void draw_line(int x0, int x1, int y0, int y1, short int colour);
@@ -234,7 +235,10 @@ int main(void) {
 
 	int flippedCard = -1;
 	// read keyboard val and "flip" card if it is chosen
-	keyboard(&keyID);
+	//keyboard(&keyID);
+	
+	keyID = *PS2_ptr & 0xFF;
+	    
 	getKey(keyID, &flippedCard);
 
 	// if the button is pressed
@@ -696,6 +700,7 @@ void wait(){
 	
 }
 
+/*
 void keyboard(unsigned char *key) {
 	volatile int * PS2_ptr = (int *)0xFF200100;
 	volatile int * card = PS2_ptr;
@@ -706,6 +711,7 @@ void keyboard(unsigned char *key) {
 		card = PS2_ptr;
 	}
 }
+*/
 
 void getKey(int keyID, int *keyPressed){
 	
