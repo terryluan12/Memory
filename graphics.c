@@ -110,6 +110,7 @@ void wait_for_vsync();
 
 
 
+unsigned char keyID = 0;
 int g_width = (RESOLUTION_X-40-(NUM_COLS*20))/NUM_COLS;
 int g_height = (RESOLUTION_Y-20-(NUM_ROWS*10))/NUM_ROWS;
 
@@ -121,21 +122,27 @@ int hard = 3;
 int reset = 4;
 
 int main(void) {
-    	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
-    	/* Read location of the pixel buffer from the pixel buffer controller */
-    	pixel_buffer_start = *pixel_ctrl_ptr;
-	
+	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
+	/* Read location of the pixel buffer from the pixel buffer controller */
+	pixel_buffer_start = *pixel_ctrl_ptr;
+
 	/* Declare volatile pointers to I/O registers (volatile means that IO load
 	and store instructions will be used to access these pointer locations,
 	instead of regular memory loads and stores) */
 	volatile int * PS2_ptr = (int *)PS2_BASE;
 	*(PS2_ptr) = 0xFF; // reset
 	
-	
-	unsigned char keyID = 0;
-	
-	clear_screen();
-	
+	/* set front pixel buffer to start of FPGA On-chip memory */
+	*(pixel_ctrl_ptr + 1) = 0xC8000000; // first store the address in the back buffer
+
+	/* now, swap the front/back buffers, to set the front buffer location */
+	wait_for_vsync();
+	/* initialize a pointer to the pixel buffer, used by drawing functions */
+	pixel_buffer_start = *pixel_ctrl_ptr;
+	clear_screen(); // pixel_buffer_start points to the pixel buffer
+	/* set back pixel buffer to start of SDRAM memory */
+	*(pixel_ctrl_ptr + 1) = 0xC0000000;
+	pixel_buffer_start = *(pixel_ctrl_ptr + 1); // we draw on the back buffer
 	
 	
 	
@@ -156,12 +163,10 @@ int main(void) {
 	// if the game state has changed, then draw the game again on the screen
 	if(game.stateChanged){
 	    clear_screen();
-            for(int i = 0; i < NUM_ROWS; i++)
-				for(int j = 0; j < NUM_COLS; j++)
-					drawCards(&game);
-
+		drawCards(&game);
 	    game.stateChanged = false;
 		wait_for_vsync();
+        pixel_buffer_start = *(pixel_ctrl_ptr + 1); // new back buffer
 	}
 
 	
@@ -189,7 +194,9 @@ int main(void) {
 			}else{
 			// otherwise only one card is face up now.
 				game.pressedCard = cardFlipped;
+				game.cards[cardFlipped].isFlipped;
 			}
+			cardFlipped = -1;
         }
 		
     }
