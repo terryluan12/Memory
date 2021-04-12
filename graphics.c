@@ -169,14 +169,12 @@ int main(void) {
         pixel_buffer_start = *(pixel_ctrl_ptr + 1); // new back buffer
 	}
 
-	
-	int cardFlipped = -1;
 	// read keyboard val and "flip" card if it is chosen
 	keyboard(&keyID);
-	getKey(keyID, &cardFlipped);
+	getKey(keyID, &game.pressedCard);
 
 	// if the button is pressed
-		if(cardFlipped != -1){
+		if(game.pressedCard != -1){
 			// change the state of the game
 			game.stateChanged = true;
 				
@@ -184,7 +182,7 @@ int main(void) {
 			if(game.pressedCard != -1){
 			// see if the cards match. In the function
 			// it also updates the state of the cards and the game
-				bool isMatched = cardsMatch(&game, cardFlipped);
+				bool isMatched = cardsMatch(&game, game.pressedCard);
 
 				if(isMatched && game.numFinished == NUM_CARDS){
 						game.gameOver = true;
@@ -193,10 +191,10 @@ int main(void) {
 				game.pressedCard = -1;	
 			}else{
 			// otherwise only one card is face up now.
-				game.pressedCard = cardFlipped;
-				game.cards[cardFlipped].isFlipped;
+				game.pressedCard = game.pressedCard;
+				game.cards[game.pressedCard].isFlipped = true;
 			}
-			cardFlipped = -1;
+			game.pressedCard = -1;
         }
 		
     }
