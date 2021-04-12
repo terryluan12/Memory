@@ -15,10 +15,11 @@ typedef struct Cards {
 typedef struct MemoryGame {
 
     Card cards[NUMROWS][NUMCOLS];
-    bool onePressed = false;
+    int pressedCard = NULL;
     int numFinished = 0;
     bool stateChanged = false;
     const int numPairs = NUMROWS * NUMCOLS;
+    bool gameOver = false;
     int level;
     int highscore;
 

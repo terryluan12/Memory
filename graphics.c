@@ -105,6 +105,7 @@ void wait();
 void draw_graphic (int card, int x_center, int y_center, int x_left, int x_right, int y_top, int y_bot,int graphic, int clear);
 void draw_front (int card, int x_center, int y_center, int x_left, int x_right, int y_top, int y_bot,int graphic, int clear);
 void keyboard(unsigned char *key);
+void getKey(int keyID, int *keyPressed);
 	
 int main(void) {
     volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
@@ -118,8 +119,7 @@ int main(void) {
 	*(PS2_ptr) = 0xFF; // reset
 	
 	
-	unsigned char pressedKey = 0;
-	bool gameOver = false;
+	unsigned char keyID = 0;
 	int clear = 0;
 	
 	clear_screen();
@@ -142,6 +142,57 @@ int main(void) {
 	//short int graphics[6] = {0, 1, 2, 3, 4, 5};
 	short int card_graphic[16] = {0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 6, 7, 6, 7};
 	
+
+	// initialize the game
+    MemGame game;
+
+    while(1){
+	// if the game state has changed, then draw the game again on the screen
+	if(game.stateChanged){
+	    clear_screen();
+            for(int i = 0; i < NUMROWS; i++)
+				for(int j = 0; j < NUMCOLS; j++)
+					drawCards(&game);
+
+	    game.stateChanged = false;
+            wait_for_vsync();
+	}
+
+	
+	int cardFlipped = -1;
+	keyboard(&keyID);
+	getKey(keyID, &cardFlipped);
+
+	// if the button is pressed
+		if(keyPressed != -1){
+			// change the state of the game
+			game.stateChanged = true;
+				
+			// if one card is pressed already
+			if(game.pressedCard != NULL){
+			// see if the cards match. In the function
+			// it also updates the state of the cards and the game
+				bool isMatched = cardsMatch(game);
+
+				if(isMatched){
+					game.numFinished++;
+					if(game.numFinished == game.numPairs){
+						game.gameOver = true;
+					}
+				}
+				// change state of the game
+				game.pressedCard = NULL;	
+			}else{
+			// otherwise only one card is face up now.
+				game.pressedCard = cardFlipped;
+			}
+        }
+		
+		draw_front(i, x_center[i], y_center[i], x_left[i], x_right[i], y_top[i], y_bot[i], card_graphic[i], 1);
+		draw_graphic(i, x_center[i], y_center[i], x_left[i], x_right[i], y_top[i], y_bot[i], card_graphic[i], clear);
+    }
+
+
 	
 	int x_width = (RESOLUTION_X-40-(NUMCOLS*20))/NUMCOLS;
 	int y_height = (RESOLUTION_Y-20-(NUMROWS*10))/NUMROWS;
@@ -185,60 +236,6 @@ int main(void) {
 	}
 	*/
 	
-	while (gameOver != true) {
-		int i = 40;
-		keyboard(&pressedKey);
-			if (pressedKey == 0x45){ 		// check if key is 0
-				i = 0;
-			}
-			else if (pressedKey == 0x16){	// check if key is 1
-				i = 1;
-			}
-			else if (pressedKey == 0x1E){	// check if key is 2
-				i = 2;
-			}
-			else if (pressedKey == 0x26){	// check if key is 3
-				i = 3;			
-			}
-			else if (pressedKey == 0x25){	// check if key is 4
-				i = 4;			
-			}
-			else if (pressedKey == 0x2E){	// check if key is 5
-				i = 5;			
-			}
-			else if (pressedKey == 0x36){	// check if key is 6
-				i = 6;			
-			}
-			else if (pressedKey == 0x3D){	// check if key is 7
-				i = 7;			
-			}
-			else if (pressedKey == 0x3E){	// check if key is 8
-				i = 8;			
-			}
-			else if (pressedKey == 0x46){	// check if key is 9
-				i = 9;			
-			}
-			else if (pressedKey == 0x1c){	// check if key is A
-				i = 10;			
-			}
-			else if (pressedKey == 0x32){	// check if key is B
-				i = 11;			
-			}
-			else if (pressedKey == 0x21){	// check if key is C
-				i = 12;			
-			}
-			else if (pressedKey == 0x23){	// check if key is D
-				i = 13;			
-			}
-			else if (pressedKey == 0x24){	// check if key is E
-				i = 14;			
-			}
-			else if (pressedKey == 0x2B){	// check if key is F
-				i = 15;			
-			}
-			draw_front(i, x_center[i], y_center[i], x_left[i], x_right[i], y_top[i], y_bot[i], card_graphic[i], 1);
-			draw_graphic(i, x_center[i], y_center[i], x_left[i], x_right[i], y_top[i], y_bot[i], card_graphic[i], clear);
-	}
 		
 	return 0;
 }
@@ -583,5 +580,60 @@ void keyboard(unsigned char *key) {
 
 	while (*card & 0x8000) {
 		card = PS2_ptr;
+	}
+}
+
+void getKey(int keyID, int *keyPressed){
+	
+	if (keyID == 0x45){ 		// check if key is 0
+		keyPressed = 0;
+	}
+	else if (keyID == 0x16){	// check if key is 1
+		keyPressed = 1;
+	}
+	else if (keyID == 0x1E){	// check if key is 2
+		keyPressed = 2;
+	}
+	else if (keyID == 0x26){	// check if key is 3
+		keyPressed = 3;			
+	}
+	else if (keyID == 0x25){	// check if key is 4
+		keyPressed = 4;			
+	}
+	else if (keyID == 0x2E){	// check if key is 5
+		keyPressed = 5;			
+	}
+	else if (keyID == 0x36){	// check if key is 6
+		keyPressed = 6;			
+	}
+	else if (keyID == 0x3D){	// check if key is 7
+		keyPressed = 7;			
+	}
+	else if (keyID == 0x3E){	// check if key is 8
+		keyPressed = 8;			
+	}
+	else if (keyID == 0x46){	// check if key is 9
+		keyPressed = 9;			
+	}
+	else if (keyID == 0x1c){	// check if key is A
+		keyPressed = 10;			
+	}
+	else if (keyID == 0x32){	// check if key is B
+		keyPressed = 11;			
+	}
+	else if (keyID == 0x21){	// check if key is C
+		keyPressed = 12;			
+	}
+	else if (keyID == 0x23){	// check if key is D
+		keyPressed = 13;			
+	}
+	else if (keyID == 0x24){	// check if key is E
+		keyPressed = 14;			
+	}
+	else if (keyID == 0x2B){	// check if key is F
+		keyPressed = 15;			
+	}
+	else{
+		keyPressed = -1;
 	}
 }
