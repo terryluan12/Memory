@@ -77,10 +77,6 @@
 #define RESOLUTION_X 320
 #define RESOLUTION_Y 240
 
-/* Constants for animation */
-#define BOX_LEN 2
-#define NUM_BOXES 8
-
 #define FALSE 0
 #define TRUE 1
 
@@ -89,14 +85,16 @@
 #include <string.h>
 #include <stdbool.h>
 
-#define NUMROWS 4
-#define NUMCOLS	4
+//#define NUMROWS 4
+//#define NUMCOLS 4
 
 // #define bool int
 #define true 1
 #define false 0	
 		
 volatile int pixel_buffer_start; // global variable
+volatile int *KEY_ptr = (int *) 0xFF20005C; // key 
+
 void clear_screen();
 void draw_line(int x0, int x1, int y0, int y1, short int colour);
 void swap(int* x, int* y);
@@ -106,11 +104,18 @@ void draw_graphic (int card, int x_center, int y_center, int x_left, int x_right
 void draw_front (int card, int x_center, int y_center, int x_left, int x_right, int y_top, int y_bot,int graphic, int clear);
 void keyboard(unsigned char *key);
 void getKey(int keyID, int *keyPressed);
-	
+
+// these can help with logic but can be removed if not used
+int level = -1;
+int easy = 1;
+int medium = 2;
+int hard = 3;
+int reset = 4;
+
 int main(void) {
-    volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
-    /* Read location of the pixel buffer from the pixel buffer controller */
-    pixel_buffer_start = *pixel_ctrl_ptr;
+    	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
+    	/* Read location of the pixel buffer from the pixel buffer controller */
+    	pixel_buffer_start = *pixel_ctrl_ptr;
 	
 	/* Declare volatile pointers to I/O registers (volatile means that IO load
 	and store instructions will be used to access these pointer locations,
@@ -120,16 +125,45 @@ int main(void) {
 	
 	
 	unsigned char keyID = 0;
+	bool gameOver = false;
+	bool choice = false;
 	int clear = 0;
+	int NUMROWS = 0;
+	int NUMCOLS = 0;
 	
 	clear_screen();
 	
+	// choose game level
+	while (choice == false) {
+		if (*KEY_ptr == 0b0001) { 	// press KEY[0] = easy
+        		level = easy;
+			NUMROWS = 2;
+			NUMCOLS = 4;
+			choice = true;
+		}  
+		else if (*KEY_ptr == 0b0010) { 	// press KEY[1] = medium
+			level = medium;
+			NUMROWS = 3;
+			NUMCOLS = 4;
+			choice = true;
+		} 
+		else if (*KEY_ptr == 0b0100){ 	// press KEY[2] = hard
+			level = hard;
+			NUMROWS = 4;
+			NUMCOLS = 4;
+			choice = true;
+		}
+	}
+	
+	*KEY_ptr = 0xFF;	// reset KEY
+
+	// initialize vals for drawing cards
 	int val = 0;
 	int N = NUMCOLS*NUMROWS;
 	int x1 = 20; 
 	int x2 = 20;
 	int y1 = 10;
-	int	y2 = 10;
+	int y2 = 10;
 	
 	short int x_left[N];
 	short int x_right[N];
@@ -160,6 +194,7 @@ int main(void) {
 
 	
 	int cardFlipped = -1;
+	// read keyboard val and "flip" card if it is chosen
 	keyboard(&keyID);
 	getKey(keyID, &cardFlipped);
 
@@ -193,11 +228,12 @@ int main(void) {
     }
 
 
-	
+	// set width/height of cards based on num of cards
 	int x_width = (RESOLUTION_X-40-(NUMCOLS*20))/NUMCOLS;
 	int y_height = (RESOLUTION_Y-20-(NUMROWS*10))/NUMROWS;
 	int k =0;
 	
+	// draw cards and store relevant vals for drawing graphics
 	for(int i = 0; i < NUMCOLS; i++){
 		for(int j = 0; j < NUMROWS; j++){
 	    	// drawCards(&game);
@@ -206,6 +242,7 @@ int main(void) {
 			draw_line(x1, y1, x1, y1+y_height, CYAN);       		// left line
 			draw_line(x1+x_width, y1, x1+x_width, y1+y_height, CYAN);   	// right line
 			
+			// vals used to draw graphics relative to card
 			y_center[k] = y1+(y_height/2);
 			y_top[k] = y1;
 			y_bot[k] = y1 + y_height;
@@ -213,7 +250,10 @@ int main(void) {
 			x_center[k] = x1+(x_width/2);
 			x_left[k] = x1;
 			x_right[k] = x1 + x_width;	
+			
+			// draw val on card so user knows what to press on keyboard to flip card
 			draw_front(k, x_center[k], y_center[k], x_left[k], x_right[k], y_top[k], y_bot[k], card_graphic[k], clear);
+			
 			k=k+1;
 			
 			y1 = y1 + 10 + y_height;
