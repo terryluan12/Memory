@@ -77,10 +77,6 @@
 #define RESOLUTION_X 320
 #define RESOLUTION_Y 240
 
-/* Constants for animation */
-#define BOX_LEN 2
-#define NUM_BOXES 8
-
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -96,6 +92,8 @@
 
 
 volatile int pixel_buffer_start; // global variable
+volatile int *KEY_ptr = (int *) 0xFF20005C; // key 
+
 void clear_screen();
 void draw_line(int x0, int x1, int y0, int y1, short int colour);
 void swap(int* x, int* y);
@@ -115,10 +113,17 @@ void wait_for_vsync();
 int g_width = (RESOLUTION_X-40-(NUM_COLS*20))/NUM_COLS;
 int g_height = (RESOLUTION_Y-20-(NUM_ROWS*10))/NUM_ROWS;
 
+// these can help with logic but can be removed if not used
+int level = -1;
+int easy = 1;
+int medium = 2;
+int hard = 3;
+int reset = 4;
+
 int main(void) {
-    volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
-    /* Read location of the pixel buffer from the pixel buffer controller */
-    pixel_buffer_start = *pixel_ctrl_ptr;
+    	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
+    	/* Read location of the pixel buffer from the pixel buffer controller */
+    	pixel_buffer_start = *pixel_ctrl_ptr;
 	
 	/* Declare volatile pointers to I/O registers (volatile means that IO load
 	and store instructions will be used to access these pointer locations,
@@ -161,6 +166,7 @@ int main(void) {
 
 	
 	int cardFlipped = -1;
+	// read keyboard val and "flip" card if it is chosen
 	keyboard(&keyID);
 	getKey(keyID, &cardFlipped);
 
