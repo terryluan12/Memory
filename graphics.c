@@ -88,6 +88,8 @@
 #define NUM_CARDS 16
 
 		
+
+
 // insert card.c here
 
 
@@ -169,12 +171,13 @@ int main(void) {
         pixel_buffer_start = *(pixel_ctrl_ptr + 1); // new back buffer
 	}
 
+	int flippedCard = -1;
 	// read keyboard val and "flip" card if it is chosen
 	keyboard(&keyID);
-	getKey(keyID, &game.pressedCard);
+	getKey(keyID, &flippedCard);
 
 	// if the button is pressed
-		if(game.pressedCard != -1){
+		if(flippedCard != -1){
 			// change the state of the game
 			game.stateChanged = true;
 				
@@ -182,7 +185,7 @@ int main(void) {
 			if(game.pressedCard != -1){
 			// see if the cards match. In the function
 			// it also updates the state of the cards and the game
-				bool isMatched = cardsMatch(&game, game.pressedCard);
+				bool isMatched = cardsMatch(&game, flippedCard);
 
 				if(isMatched && game.numFinished == NUM_CARDS){
 						game.gameOver = true;
@@ -191,10 +194,9 @@ int main(void) {
 				game.pressedCard = -1;	
 			}else{
 			// otherwise only one card is face up now.
-				game.pressedCard = game.pressedCard;
+				game.pressedCard = flippedCard;
 				game.cards[game.pressedCard].isFlipped = true;
 			}
-			game.pressedCard = -1;
         }
 		
     }
@@ -216,17 +218,17 @@ int main(void) {
 
 bool cardsMatch(MemGame *game, int secondCardId){
 
-	Card firstCard, secondCard;
-	firstCard = game->cards[game->pressedCard];
-	secondCard = game->cards[secondCardId];
-	bool matched = firstCard.value == secondCard.value;
+	Card *firstCard, *secondCard;
+	firstCard = &game->cards[game->pressedCard];
+	secondCard = &game->cards[secondCardId];
+	bool matched = firstCard->value == secondCard->value;
 	if(matched){
-		secondCard.isFlipped = true;
-		firstCard.isMatched = true;
-		secondCard.isMatched = true;
+		secondCard->isFlipped = true;
+		firstCard->isMatched = true;
+		secondCard->isMatched = true;
 		game->numFinished++;
 	}else{
-		firstCard.isMatched = false;
+		firstCard->isFlipped = false;
 	}
 	return matched;
 }
@@ -308,7 +310,7 @@ void draw_graphic (int graphic, int x_left, int y_top, int clear){
 		draw_line(x_left+15, y_top+10, x_right-15, y_top+10, line_color);  	// top line
 		draw_line(x_left+10, y_bot-10, x_right-10, y_bot-10, line_color);  	// bot line
 		draw_line(x_left+15, y_top+10, x_left+10, y_bot-10, line_color);   	// left line
-		draw_line(x_right-10, y_bot-10, x_right-15, y_top+10, line_color);   	// right line
+		draw_line(x_right-10, y_bot-10, x_right-15, y_top+10, line_color);  // right line
 	}
 	
 	//graphic 3 - rhombus
