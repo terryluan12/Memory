@@ -1,4 +1,3 @@
-
 /* This files provides address values that exist in the system */
 #define BOARD                 "DE1-SoC"/* Memory */
 #define DDR_BASE              0x00000000
@@ -127,7 +126,7 @@ bool cardsMatch(MemGame *game, int secondCardId);
 void drawCards(MemGame *game);
 void initializeGame(MemGame *game);
 void wait_for_vsync();
-void shuffle(int *array, int n);
+void shuffle(int cards[], int num_cards);
 
 void HEX_PS2(char b1, char b2);
 void HEX_PS2_1(char b1, char b2);
@@ -146,8 +145,6 @@ int v_hard = 4;
 bool firstgame = true;
 
 int main(void) {
-	// seed the random number generator once
-    srand((unsigned)time(NULL));
 	
 	while(true){
 		volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
@@ -200,7 +197,6 @@ int main(void) {
 		g_width = (RESOLUTION_X-40-(NUM_COLS*20))/NUM_COLS;
 		g_height = (RESOLUTION_Y-20-(NUM_ROWS*10))/NUM_ROWS;
 		
-
 		
 		initializeGame(&game);
 		char a, b;
@@ -309,9 +305,13 @@ bool cardsMatch(MemGame *game, int secondCardId){
 
 void initializeGame(MemGame *game){
 		
-	int card_graphic[16] = {0, 1, 0, 1, 2, 3, 2, 3, 4, 5, 4, 5, 6, 7, 6, 7};
-	shuffle(&card_graphic, sizeof(int));
-
+	int card_graphic[NUM_CARDS]; 
+	int card_shapes[16] = {0, 1, 0, 1, 2, 3, 2, 3, 4, 5, 4, 5, 6, 7, 6, 7};
+	
+	for (int i = 0; i < NUM_CARDS; i++){
+		card_graphic[i] = card_shapes[i];
+	}
+	shuffle (card_graphic, NUM_CARDS);
 
 	// set important variables of game to default. Set stateChanged to true, to draw it for the first time
 	game->pressedCard = -1;
@@ -637,15 +637,6 @@ void clear_screen() {
 	}
 }
 
-void shuffle(int *array, int n) {
-    for (int i = 0; i < n - 1; i++) {
-        size_t j = i + rand() / (RAND_MAX / (n - i) + 1);
-        int t = array[j];
-        array[j] = array[i];
-        array[i] = t;
-    }
-}
-
 void getKey(int keyID, int *keyPressed){
 	
 	if (keyID == 0x45){ 		// check if key is 0
@@ -744,6 +735,16 @@ void draw_line(int x0, int y0, int x1, int y1, short int colour) {
 			error = error - deltax;
 		}
 	}
+}
+
+void shuffle(int cards[], int num_cards) {
+    
+	srand(time(NULL));
+    
+    for(int i = num_cards-1; i > 0; i--) {
+        int j = rand() % (i+1);
+        swap(&cards[i], &cards[j]);
+    }
 }
 
 void swap(int* x, int* y){
