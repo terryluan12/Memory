@@ -71,23 +71,14 @@
 #define ORANGE 0xFC00
 #define BLACK 0x0000
 
-#define ABS(x) (((x) > 0) ? (x) : -(x))
-
 /* Screen size. */
 #define RESOLUTION_X 320
 #define RESOLUTION_Y 240
 
 
 #include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include <stdbool.h>
-
-/*
-#define NUM_ROWS 2
-#define NUM_COLS 4
-#define NUM_CARDS 8
-*/
+#include <time.h>
 
 int NUM_ROWS;
 int NUM_COLS;
@@ -101,10 +92,9 @@ typedef struct Cards {
     int x_left;
     bool isFlipped;
 	
-	bool wasFlipped; //--------------------
+	bool wasFlipped; 
 	
     int value;
-    bool isMatched;
 
 } Card;
 
@@ -125,21 +115,23 @@ volatile int pixel_buffer_start; // global variable
 volatile int *KEY_ptr = (int *) 0xFF20005C; // push buttons 
 volatile int * PS2_ptr = (int *)0xFF200100; // ps2 keyboard
 
+// function declarations
 void clear_screen();
 void draw_line(int x0, int x1, int y0, int y1, short int colour);
 void swap(int* x, int* y);
 void plot_pixel(int x, int y, short int line_color);
-void wait();
 void draw_graphic (int graphic, int x_left, int y_top, int clear);
 void draw_front (int card, int x_left,int y_top, int clear);
 void keyboard(unsigned char *key);
 void getKey(int keyID, int *keyPressed);
 bool cardsMatch(MemGame *game, int secondCardId);
 void drawCards(MemGame *game);
-void initializeCards(MemGame *game);
+void initializeGame(MemGame *game);
 void wait_for_vsync();
+void shuffle(int *array, size_t n);
 
 
+// important global variables
 int g_width;
 int g_height;
 
@@ -151,191 +143,181 @@ int hard = 3;
 int reset = 4;
 
 int main(void) {
-	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
-	/* Read location of the pixel buffer from the pixel buffer controller */
-	pixel_buffer_start = *pixel_ctrl_ptr;
+	while(true){
+		volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
+		/* Read location of the pixel buffer from the pixel buffer controller */
+		pixel_buffer_start = *pixel_ctrl_ptr;
 
-	/* Declare volatile pointers to I/O registers (volatile means that IO load
-	and store instructions will be used to access these pointer locations,
-	instead of regular memory loads and stores) */
-	//volatile int * PS2_ptr = (int *)PS2_BASE;
-	*(PS2_ptr) = 0xFF; // reset
-	
-	/* set front pixel buffer to start of FPGA On-chip memory */
-	//*(pixel_ctrl_ptr + 1) = 0xC8000000; // first store the address in the back buffer
-
-	/* now, swap the front/back buffers, to set the front buffer location */
-	//wait_for_vsync();
-	/* initialize a pointer to the pixel buffer, used by drawing functions */
-	//pixel_buffer_start = *pixel_ctrl_ptr;
-	clear_screen(); // pixel_buffer_start points to the pixel buffer
-	/* set back pixel buffer to start of SDRAM memory */
-	//*(pixel_ctrl_ptr + 1) = 0xC0000000;
-	//pixel_buffer_start = *(pixel_ctrl_ptr + 1); // we draw on the back buffer
-
-
-	// initialize the game
-    MemGame game;
-	
-	bool choice = false;
-	// choose game level
-	while (choice == false) {
-		if (*KEY_ptr == 0b0001) { 		// press KEY[0] = easy
-        	game.level = easy;
-			NUM_ROWS = 2;
-			NUM_COLS = 4;
-			NUM_CARDS = NUM_ROWS*NUM_COLS;
-			choice = true;
-		}  
-		else if (*KEY_ptr == 0b0010) { 	// press KEY[1] = medium
-			game.level = medium;
-			NUM_ROWS = 3;
-			NUM_COLS = 4;
-			NUM_CARDS = NUM_ROWS*NUM_COLS;
-			choice = true;
-		} 
-		else if (*KEY_ptr == 0b0100){ 	// press KEY[2] = hard
-			game.level = hard;
-			NUM_ROWS = 4;
-			NUM_COLS = 4;
-			NUM_CARDS = NUM_ROWS*NUM_COLS;
-			choice = true;
-		}
-	}
-	
-	*KEY_ptr = 0xFF;	// reset KEY
-	
-	g_width = (RESOLUTION_X-40-(NUM_COLS*20))/NUM_COLS;
-	g_height = (RESOLUTION_Y-20-(NUM_ROWS*10))/NUM_ROWS;
-	
-	initializeCards(&game);
-
-	game.pressedCard = -1;
-	
-    game.stateChanged = true;
-    game.gameOver = false;
-    game.highscore = 0;
-	game.numFinished = 0;
-	
+		/* Declare volatile pointers to I/O registers (volatile means that IO load
+		and store instructions will be used to access these pointer locations,
+		instead of regular memory loads and stores) */
+		//volatile int * PS2_ptr = (int *)PS2_BASE;
+		*(PS2_ptr) = 0xFF; // reset
 		
-	int PS2_data, RVALID;
-	
-    while(1){
-		// if the game state has changed, then draw the game again on the screen
-		if(game.stateChanged){
-			//clear_screen();
-			drawCards(&game);
-			game.stateChanged = false;
-			//wait_for_vsync();
-			//pixel_buffer_start = *(pixel_ctrl_ptr + 1); // new back buffer
-		}
-	
-	
-		// read keyboard val and "flip" card if it is chosen
-		// keyboard(&keyID);
-		int card;
-		char keyID = 0;
-		int flippedCard = -1;
-		PS2_data = *(PS2_ptr);		    //--------------- ADDED
-		RVALID = PS2_data & 0x8000;
+		/* set front pixel buffer to start of FPGA On-chip memory */
+		//*(pixel_ctrl_ptr + 1) = 0xC8000000; // first store the address in the back buffer
 
-		if(RVALID){	
-			keyID = PS2_data & 0xFF;		//--------------- MODIFIED
+		/* now, swap the front/back buffers, to set the front buffer location */
+		//wait_for_vsync();
+		/* initialize a pointer to the pixel buffer, used by drawing functions */
+		//pixel_buffer_start = *pixel_ctrl_ptr;
+		clear_screen(); // pixel_buffer_start points to the pixel buffer
+		/* set back pixel buffer to start of SDRAM memory */
+		//*(pixel_ctrl_ptr + 1) = 0xC0000000;
+		//pixel_buffer_start = *(pixel_ctrl_ptr + 1); // we draw on the back buffer
+
+
+		// initialize the game
+		MemGame game;
 		
-			getKey(keyID, &flippedCard);
-			
-			while (PS2_data & 0x8000) {
-				PS2_data = *PS2_ptr;
+		bool choice = false;
+		// choose game level
+		while (choice == false) {
+			if (*KEY_ptr == 0b0001) { 		// press KEY[0] = easy
+				game.level = easy;
+				NUM_ROWS = 2;
+				NUM_COLS = 4;	
+				choice = true;
+			}  
+			else if (*KEY_ptr == 0b0010) { 	// press KEY[1] = medium
+				game.level = medium;
+				NUM_ROWS = 3;
+				NUM_COLS = 4;	
+				choice = true;
+			} 
+			else if (*KEY_ptr == 0b0100){ 	// press KEY[2] = hard
+				game.level = hard;
+				NUM_ROWS = 4;
+				NUM_COLS = 4;		
+				choice = true;
+			}else if(*KEY_ptr == 0b1000){ // press KEY[3] = custom
+
 			}
+			
 		}
-
-		// if the button is pressed
-		if(flippedCard != -1 ){
-			// change the state of the game
-			game.stateChanged = true;
-
-			// if one card is pressed already
-			if(game.pressedCard != -1 && !game.cards[flippedCard].isFlipped){
-				game.cards[flippedCard].isFlipped = true;
+		// get the number of cards
+		NUM_CARDS = NUM_ROWS*NUM_COLS;
+		*KEY_ptr = 0xFF;	// reset KEYs
+		
+		// get the height and width of the cards
+		g_width = (RESOLUTION_X-40-(NUM_COLS*20))/NUM_COLS;
+		g_height = (RESOLUTION_Y-20-(NUM_ROWS*10))/NUM_ROWS;
+		
+		initializeGame(&game);
+		
+			
+		int PS2_data, RVALID;
+		
+		while(!game.gameOver){
+			// if the game state has changed, then draw the game again on the screen
+			if(game.stateChanged){
+				//clear_screen();
 				drawCards(&game);
-				for(int i = 0; i < 1000000; i++){}
-				// see if the cards match. In the function
-				// it also updates the state of the cards and the game
-				bool isMatched = cardsMatch(&game, flippedCard);
+				game.stateChanged = false;
+				//wait_for_vsync();
+				//pixel_buffer_start = *(pixel_ctrl_ptr + 1); // new back buffer
+			}
+		
+		
+			// read keyboard val and "flip" card if it is chosen
+			PS2_data = *(PS2_ptr);
+			char keyID = 0;
+			int flippedCard = -1;
+			RVALID = PS2_data & 0x8000;
+			// if the input is valid
+			if(RVALID){	
+				// get the keyID of the pressed keys
+				keyID = *(PS2_ptr) & 0xFF;
+				// get and store the key in flippedCard
+				getKey(keyID, &flippedCard);
+				// reset the keyboard
+				*(PS2_ptr) = 0xFF;
 				
-				// change state of the game
-				game.pressedCard = -1;	
-
-				if(isMatched && game.numFinished == NUM_CARDS/2){
-					game.gameOver = true;
+				//while it's still valid, write to the register
+				while (PS2_data & 0x8000) {
+					PS2_data = *PS2_ptr;
 				}
 			}
 
-			// otherwise only one card is face up now.
-			else if(!game.cards[flippedCard].isMatched){
-				card = flippedCard;
-				game.pressedCard = card;
-				game.cards[game.pressedCard].isFlipped = true;
+			// if the button is pressed
+			if(flippedCard != -1 ){
+				// change the state of the game (and therefore redraw)
+				game.stateChanged = true;
+
+				// if one card is pressed already and the new card flipped isn't flipped already
+				if(game.pressedCard != -1 && !game.cards[flippedCard].isFlipped){
+					// flip over the new card temporarily and wait a couple of seconds
+					game.cards[flippedCard].isFlipped = true;
+					drawCards(&game);
+					for(int i = 0; i < 1000000; i++){}
+					// Updates the state of the cards and the game
+					cardsMatch(&game, flippedCard);
+					
+					// next time, the player looking for a new pair
+					game.pressedCard = -1;	
+
+					// if the number of pairs finished is equal to total number of pairs, it's game over
+					if(game.numFinished == NUM_CARDS/2){
+						game.gameOver = true;
+					}
+				}
+
+				// if no card is flipped, then flip it face up
+				else if(!game.cards[flippedCard].isFlipped){
+					game.pressedCard = flippedCard;
+					game.cards[game.pressedCard].isFlipped = true;
+				}
 			}
 		}
-    }
 	
-	// Check drawing - remove before submit
-	/*
-	k = 0;
-	for(int i = 0; i < NUM_COLS; i++){
-		for(int j = 0; j < NUM_ROWS; j++){
-			draw_graphic(k, x_center[k], y_center[k], x_left[k], x_right[k], y_top[k], y_bot[k], card_graphic[k]);
-			k = k+1;
-		}
-	}
-	*/
 	
-		
+
+	}	
 	return 0;
 }
 
 bool cardsMatch(MemGame *game, int secondCardId){
-
+	// initialize important variables
 	Card *firstCard, *secondCard;
 	firstCard = &game->cards[game->pressedCard];
 	secondCard = &game->cards[secondCardId];
-	bool matched = false; 
-	if (firstCard->value == secondCard->value){
-		matched = true;
-	}
-	if(matched == true){
+	bool matched = firstCard->value == secondCard->value; 
+
+	// if the cards match, then flip over both cards to their face
+	if(matched){
 		secondCard->isFlipped = true;
-		firstCard->isMatched = true;
-		secondCard->isMatched = true;
+		firstCard->isFlipped = true;
 		game->numFinished++;
 	}
+	// otherwise flip over both to the back
 	else{
 		firstCard->isFlipped = false;
 		secondCard->isFlipped = false;
-		firstCard->wasFlipped = true; //-------------------
-		secondCard->wasFlipped = true; //-------------------
+		firstCard->wasFlipped = true; 
+		secondCard->wasFlipped = true; 
 	}
 	return matched;
 }
 
-void initializeCards(MemGame *game){
+void initializeGame(MemGame *game){
 		
-	//short int graphics[6] = {0, 1, 2, 3, 4, 5};
-	short int card_graphic[16] = {0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 4, 5, 6, 7, 6, 7};
 
-	int x1 = 20;
-	int y1 = 10;
+	int card_graphic[16] = {0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 4, 5, 6, 7, 6, 7};
+	shuffle(&card_graphic, sizeof(int));
+
+
+	// set important variables of game to default. Set stateChanged to true, to draw it for the first time
+	game->pressedCard = -1;
+	game->stateChanged = true;
+	game->gameOver = false;
+	game->highscore = 0;
+	game->numFinished = 0;
 	
-	for(int i = 0; i < NUM_COLS; i++){
-		for(int j = 0; j < NUM_ROWS; j++){
-			game->cards[NUM_ROWS * i + j].row = j;
-			game->cards[NUM_ROWS * i + j].col = i;
-			y1 = y1 + 10 + g_height;
+	for(int i = 0; i < NUM_ROWS; i++){
+		for(int j = 0; j < NUM_COLS; j++){
+			game->cards[NUM_COLS * i + j].row = i;
+			game->cards[NUM_COLS * i + j].col = j;
 		}
-		
-		x1 = x1 + 20 + g_width;
-		y1 = 10;
 	}
 	for(int i = 0; i < NUM_CARDS; i++){
 		game->cards[i].y_top = 10 + 10 * game->cards[i].row + g_height * game->cards[i].row;
@@ -344,8 +326,8 @@ void initializeCards(MemGame *game){
 		game->cards[i].isFlipped = false;
 		
 		game->cards[i].wasFlipped = false; //-------------
-		
-		game->cards[i].isMatched = false;
+
+		// draw outlines of the cards
 		draw_line(game->cards[i].x_left, game->cards[i].y_top, game->cards[i].x_left+g_width, game->cards[i].y_top, CYAN);   			// top line
 		draw_line(game->cards[i].x_left, game->cards[i].y_top+g_height, game->cards[i].x_left+g_width, game->cards[i].y_top+g_height, CYAN);  	// bot line
 		draw_line(game->cards[i].x_left, game->cards[i].y_top, game->cards[i].x_left, game->cards[i].y_top+g_height, CYAN);       		// left line
@@ -356,24 +338,18 @@ void drawCards(MemGame *game){
 
 
 	for(int i = 0; i < NUM_CARDS; i++){
-		/*draw_line(game->cards[i].x_left, game->cards[i].y_top, game->cards[i].x_left+g_width, game->cards[i].y_top, CYAN);   			// top line
-		draw_line(game->cards[i].x_left, game->cards[i].y_top+g_height, game->cards[i].x_left+g_width, game->cards[i].y_top+g_height, CYAN);  	// bot line
-		draw_line(game->cards[i].x_left, game->cards[i].y_top, game->cards[i].x_left, game->cards[i].y_top+g_height, CYAN);       		// left line
-		draw_line(game->cards[i].x_left+g_width, game->cards[i].y_top, game->cards[i].x_left+g_width, game->cards[i].y_top+g_height, CYAN);   	// right line
-		*/
-		
-		if(game->cards[i].isFlipped == true || game->cards[i].isMatched == true ){
+		 
+		if(game->cards[i].isFlipped){
+			// draw over the front with black and draw the graphic
 			draw_front(i, game->cards[i].x_left, game->cards[i].y_top, 1);
 			draw_graphic(game->cards[i].value, game->cards[i].x_left, game->cards[i].y_top, 0);
 		}
 		else {
+			// draw over the graphic with black, draw the front and change wasFlipped to false
 			draw_graphic(game->cards[i].value, game->cards[i].x_left, game->cards[i].y_top, 1);
 			draw_front(i, game->cards[i].x_left, game->cards[i].y_top, 0);
 			game->cards[i].wasFlipped = false;
 		}
-		//else{
-		//	draw_front(i, game->cards[i].x_left, game->cards[i].y_top, 0);
-		//}
 	}
 			
 }
@@ -652,6 +628,76 @@ void clear_screen() {
 	}
 }
 
+void shuffle(int *array, size_t n) {    
+    time_t t;
+    srand((unsigned) time(&t));
+
+
+    if (n > 1) {
+        size_t i;
+        for (i = n - 1; i > 0; i--) {
+            size_t j = (unsigned int) (rand() / (RAND_MAX) *(i+1));
+            int t = array[j];
+            array[j] = array[i];
+            array[i] = t;
+        }
+    }
+}
+void getKey(int keyID, int *keyPressed){
+	
+	if (keyID == 0x45){ 		// check if key is 0
+		*keyPressed = 0;
+	}
+	else if (keyID == 0x16){	// check if key is 1
+		*keyPressed = 1;
+	}
+	else if (keyID == 0x1E){	// check if key is 2
+		*keyPressed = 2;
+	}
+	else if (keyID == 0x26){	// check if key is 3
+		*keyPressed = 3;	
+	}
+	else if (keyID == 0x25){	// check if key is 4
+		*keyPressed = 4;
+	}
+	else if (keyID == 0x2E){	// check if key is 5
+		*keyPressed = 5;
+	}
+	else if (keyID == 0x36){	// check if key is 6
+		*keyPressed = 6;
+	}
+	else if (keyID == 0x3D){	// check if key is 7
+		*keyPressed = 7;
+	}
+	else if (keyID == 0x3E){	// check if key is 8
+		*keyPressed = 8;
+	}
+	else if (keyID == 0x46){	// check if key is 9
+		*keyPressed = 9;
+	}
+	else if (keyID == 0x1c){	// check if key is A
+		*keyPressed = 10;
+	}
+	else if (keyID == 0x32){	// check if key is B
+		*keyPressed = 11;
+	}
+	else if (keyID == 0x21){	// check if key is C
+		*keyPressed = 12;
+	}
+	else if (keyID == 0x23){	// check if key is D
+		*keyPressed = 13;
+	}
+	else if (keyID == 0x24){	// check if key is E
+		*keyPressed = 14;
+	}
+	else if (keyID == 0x2B){	// check if key is F
+		*keyPressed = 15;
+	}
+	else{
+		*keyPressed = -1;
+	}
+}
+
 void draw_line(int x0, int y0, int x1, int y1, short int colour) {
 	bool is_steep = abs(y1 - y0) > abs(x1 - x0);
 	
@@ -705,115 +751,4 @@ void swap(int* x, int* y){
 void plot_pixel(int x, int y, short int line_color)
 {
     *(short int *)(pixel_buffer_start + (y << 10) + (x << 1)) = line_color;
-}
-
-void wait(){
-	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
-	volatile int * status = (int *)0xFF20302C;
-	
-	*pixel_ctrl_ptr = 1;
-		
-	while((*status &0x01) != 0){
-		status = status;
-	}
-}
-
-/*
-void keyboard(unsigned char *key) {
-	volatile int * PS2_ptr = (int *)0xFF200100;
-	volatile int * card = PS2_ptr;
-	
-	*key = *card & 0xFF;
-
-	while (*card & 0x8000) {
-		card = PS2_ptr;
-	}
-}
-*/
-
-void getKey(int keyID, int *keyPressed){
-	int press = 0;
-	
-	if (keyID == 0x45){ 		// check if key is 0
-		*keyPressed = 0;
-		press = 1;
-	}
-	else if (keyID == 0x16){	// check if key is 1
-		*keyPressed = 1;
-		press = 1;
-	}
-	else if (keyID == 0x1E){	// check if key is 2
-		*keyPressed = 2;
-		press = 1;
-	}
-	else if (keyID == 0x26){	// check if key is 3
-		*keyPressed = 3;	
-		press = 1;
-	}
-	else if (keyID == 0x25){	// check if key is 4
-		*keyPressed = 4;
-		press = 1;
-	}
-	else if (keyID == 0x2E){	// check if key is 5
-		*keyPressed = 5;
-		press = 1;
-	}
-	else if (keyID == 0x36){	// check if key is 6
-		*keyPressed = 6;
-		press = 1;
-	}
-	else if (keyID == 0x3D){	// check if key is 7
-		*keyPressed = 7;
-		press = 1;
-	}
-	else if (keyID == 0x3E){	// check if key is 8
-		*keyPressed = 8;
-		press = 1;
-	}
-	else if (keyID == 0x46){	// check if key is 9
-		*keyPressed = 9;
-		press = 1;
-	}
-	else if (keyID == 0x1c){	// check if key is A
-		*keyPressed = 10;
-		press = 1;
-	}
-	else if (keyID == 0x32){	// check if key is B
-		*keyPressed = 11;
-		press = 1;
-	}
-	else if (keyID == 0x21){	// check if key is C
-		*keyPressed = 12;
-		press = 1;
-	}
-	else if (keyID == 0x23){	// check if key is D
-		*keyPressed = 13;
-		press = 1;
-	}
-	else if (keyID == 0x24){	// check if key is E
-		*keyPressed = 14;
-		press = 1;
-	}
-	else if (keyID == 0x2B){	// check if key is F
-		*keyPressed = 15;
-		press = 1;
-	}
-	else{
-		*keyPressed = -1;
-	}
-	
-	if (press == 1){                        //--------------- ADDED
-		*(PS2_ptr) = 0xFF; // reset			//--------------- ADDED
-	}										//--------------- ADDED
-	return;
-}
-void wait_for_vsync(){
-	volatile int *front_buffer = (int *)PIXEL_BUF_CTRL_BASE;
-	// write a 1 to the front buffer
-	*front_buffer = 1;
-	// get the state of the switch and only continue when it is finished
-	int state = *(front_buffer + 3);
-	while((state & 0x1) != 0 ){
-		state = *(front_buffer + 3);
-	}
 }
