@@ -219,54 +219,58 @@ int main(void) {
 	game.numFinished = 0;
 	
 	
-	char keyID = 0;	
-	int flippedCard = -1;
-	int PS2_data;
+		
+	int PS2_data, RVALID;
 	
     while(1){
-	// if the game state has changed, then draw the game again on the screen
-	if(game.stateChanged){
-	    //clear_screen();
-		drawCards(&game);
-	    game.stateChanged = false;
-		//wait_for_vsync();
-        //pixel_buffer_start = *(pixel_ctrl_ptr + 1); // new back buffer
-	}
+		// if the game state has changed, then draw the game again on the screen
+		if(game.stateChanged){
+			//clear_screen();
+			drawCards(&game);
+			game.stateChanged = false;
+			//wait_for_vsync();
+			//pixel_buffer_start = *(pixel_ctrl_ptr + 1); // new back buffer
+		}
 	
 	
-	// read keyboard val and "flip" card if it is chosen
-	//keyboard(&keyID);
-	
-	PS2_data = *(PS2_ptr);		    //--------------- ADDED
+		// read keyboard val and "flip" card if it is chosen
+		//keyboard(&keyID);
+
+		char keyID = 0;
+		int flippedCard = -1;
+		PS2_data = *(PS2_ptr);		    //--------------- ADDED
+		RVALID = PS2_data & 0x8000;
+
+		if(RVALID){	
+			keyID = PS2_data & 0xFF;		//--------------- MODIFIED
 		
-	keyID = PS2_data & 0xFF;		//--------------- MODIFIED
-		
-	getKey(keyID, &flippedCard);	
-		
-	// if the button is pressed
+			getKey(keyID, &flippedCard);	
+		}
+
+		// if the button is pressed
 		if(flippedCard != -1){
 			// change the state of the game
 			game.stateChanged = true;
-				
+
 			// if one card is pressed already
 			if(game.pressedCard != -1){
-			// see if the cards match. In the function
-			// it also updates the state of the cards and the game
+				// see if the cards match. In the function
+				// it also updates the state of the cards and the game
 				bool isMatched = cardsMatch(&game, flippedCard);
 
 				if(isMatched && game.numFinished == NUM_CARDS/2){
-						game.gameOver = true;
+					game.gameOver = true;
 				}
 				// change state of the game
 				game.pressedCard = -1;	
 			}
-			else{
+
 			// otherwise only one card is face up now.
+			else{
 				game.pressedCard = flippedCard;
 				game.cards[game.pressedCard].isFlipped = true;
 			}
-        }
-		
+		}
     }
 	
 	// Check drawing - remove before submit
@@ -289,13 +293,17 @@ bool cardsMatch(MemGame *game, int secondCardId){
 	Card *firstCard, *secondCard;
 	firstCard = &game->cards[game->pressedCard];
 	secondCard = &game->cards[secondCardId];
-	bool matched = firstCard->value == secondCard->value;
-	if(matched){
+	bool matched; 
+	if (firstCard->value == secondCard->value){
+		matched = true;
+	}
+	if(matched == true){
 		secondCard->isFlipped = true;
 		firstCard->isMatched = true;
 		secondCard->isMatched = true;
 		game->numFinished++;
-	}else{
+	}
+	else{
 		firstCard->isFlipped = false;
 		firstCard->wasFlipped = true; //-------------------
 		secondCard->wasFlipped = true; //-------------------
@@ -346,18 +354,18 @@ void drawCards(MemGame *game){
 		draw_line(game->cards[i].x_left+g_width, game->cards[i].y_top, game->cards[i].x_left+g_width, game->cards[i].y_top+g_height, CYAN);   	// right line
 		*/
 		
-		if(game->cards[i].isFlipped){
+		if(game->cards[i].isFlipped == true || game->cards[i].isMatched == true ){
 			draw_front(i, game->cards[i].x_left, game->cards[i].y_top, 1);
 			draw_graphic(game->cards[i].value, game->cards[i].x_left, game->cards[i].y_top, 0);
 		}
-		else if (game->cards[i].wasFlipped){
+		else {
 			draw_graphic(game->cards[i].value, game->cards[i].x_left, game->cards[i].y_top, 1);
 			draw_front(i, game->cards[i].x_left, game->cards[i].y_top, 0);
 			game->cards[i].wasFlipped = false;
 		}
-		else{
-			draw_front(i, game->cards[i].x_left, game->cards[i].y_top, 0);
-		}
+		//else{
+		//	draw_front(i, game->cards[i].x_left, game->cards[i].y_top, 0);
+		//}
 	}
 			
 }
@@ -789,6 +797,7 @@ void getKey(int keyID, int *keyPressed){
 	if (press == 1){                        //--------------- ADDED
 		*(PS2_ptr) = 0xFF; // reset			//--------------- ADDED
 	}										//--------------- ADDED
+	return;
 }
 void wait_for_vsync(){
 	volatile int *front_buffer = (int *)PIXEL_BUF_CTRL_BASE;
