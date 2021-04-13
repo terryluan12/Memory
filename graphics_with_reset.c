@@ -250,14 +250,15 @@ int main(void) {
 		}
 
 		// if the button is pressed
-		if(flippedCard != -1){
+		if(flippedCard != -1 ){
 			// change the state of the game
 			game.stateChanged = true;
 
 			// if one card is pressed already
-			if(game.pressedCard != -1){
+			if(game.pressedCard != -1 && !game.cards[flippedCard].isFlipped){
 				game.cards[flippedCard].isFlipped = true;
 				drawCards(&game);
+				for(int i = 0; i < 1000000; i++){}
 				// see if the cards match. In the function
 				// it also updates the state of the cards and the game
 				bool isMatched = cardsMatch(&game, flippedCard);
@@ -271,7 +272,7 @@ int main(void) {
 			}
 
 			// otherwise only one card is face up now.
-			else{
+			else if(!game.cards[flippedCard].isMatched){
 				card = flippedCard;
 				game.pressedCard = card;
 				game.cards[game.pressedCard].isFlipped = true;
