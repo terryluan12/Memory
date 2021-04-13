@@ -214,10 +214,8 @@ int main(void) {
 	
     game.stateChanged = true;
     game.gameOver = false;
-   // game.level = 1;
     game.highscore = 0;
 	game.numFinished = 0;
-	
 	
 		
 	int PS2_data, RVALID;
@@ -234,8 +232,8 @@ int main(void) {
 	
 	
 		// read keyboard val and "flip" card if it is chosen
-		//keyboard(&keyID);
-
+		// keyboard(&keyID);
+		int card;
 		char keyID = 0;
 		int flippedCard = -1;
 		PS2_data = *(PS2_ptr);		    //--------------- ADDED
@@ -244,7 +242,11 @@ int main(void) {
 		if(RVALID){	
 			keyID = PS2_data & 0xFF;		//--------------- MODIFIED
 		
-			getKey(keyID, &flippedCard);	
+			getKey(keyID, &flippedCard);
+			
+			while (PS2_data & 0x8000) {
+				PS2_data = *PS2_ptr;
+			}
 		}
 
 		// if the button is pressed
@@ -254,20 +256,24 @@ int main(void) {
 
 			// if one card is pressed already
 			if(game.pressedCard != -1){
+				game.cards[flippedCard].isFlipped = true;
+				drawCards(&game);
 				// see if the cards match. In the function
 				// it also updates the state of the cards and the game
 				bool isMatched = cardsMatch(&game, flippedCard);
+				
+				// change state of the game
+				game.pressedCard = -1;	
 
 				if(isMatched && game.numFinished == NUM_CARDS/2){
 					game.gameOver = true;
 				}
-				// change state of the game
-				game.pressedCard = -1;	
 			}
 
 			// otherwise only one card is face up now.
 			else{
-				game.pressedCard = flippedCard;
+				card = flippedCard;
+				game.pressedCard = card;
 				game.cards[game.pressedCard].isFlipped = true;
 			}
 		}
@@ -293,7 +299,7 @@ bool cardsMatch(MemGame *game, int secondCardId){
 	Card *firstCard, *secondCard;
 	firstCard = &game->cards[game->pressedCard];
 	secondCard = &game->cards[secondCardId];
-	bool matched; 
+	bool matched = false; 
 	if (firstCard->value == secondCard->value){
 		matched = true;
 	}
@@ -305,6 +311,7 @@ bool cardsMatch(MemGame *game, int secondCardId){
 	}
 	else{
 		firstCard->isFlipped = false;
+		secondCard->isFlipped = false;
 		firstCard->wasFlipped = true; //-------------------
 		secondCard->wasFlipped = true; //-------------------
 	}
