@@ -129,6 +129,7 @@ void wait_for_vsync();
 void shuffle(int *array, size_t n);
 
 void HEX_PS2(char b1, char b2);
+void HEX_PS2_1(char b1, char b2);
 
 // important global variables
 int g_width;
@@ -140,6 +141,8 @@ int easy = 1;
 int medium = 2;
 int hard = 3;
 int v_hard = 4;
+
+bool firstgame = true;
 
 int main(void) {
 	
@@ -194,18 +197,22 @@ int main(void) {
 		g_width = (RESOLUTION_X-40-(NUM_COLS*20))/NUM_COLS;
 		g_height = (RESOLUTION_Y-20-(NUM_ROWS*10))/NUM_ROWS;
 		
-		initializeGame(&game);
+
 		
+		initializeGame(&game);
+		char a, b;
+		
+		b = (char) game.highscore%10;
+		a = (char) game.highscore/10;
+		HEX_PS2_1(a, b);
 			
 		int PS2_data, RVALID;
-		char a, b;
 		
 		while(!game.gameOver){
 			// if the game state has changed, then draw the game again on the screen
 			if(game.stateChanged){
 				drawCards(&game);
 				game.stateChanged = false;
-				//game.highscore += 1;
 				b = (char) game.score%10;
 				a = (char) game.score/10;
 				HEX_PS2(a, b);
@@ -253,6 +260,10 @@ int main(void) {
 					// if the number of pairs finished is equal to total number of pairs, it's game over
 					if(game.numFinished == NUM_CARDS/2){
 						game.gameOver = true;
+						if (game.score - 1 > game.highscore){
+							game.highscore = game.score - 1;
+						}
+						firstgame = false;
 					}
 				}
 
@@ -300,7 +311,9 @@ void initializeGame(MemGame *game){
 	game->pressedCard = -1;
 	game->stateChanged = true;
 	game->gameOver = false;
-	game->highscore = 0;
+	if (firstgame == true){
+		game->highscore = 0;
+	}
 	game->score = 0;
 	game->numFinished = 0;
 	
@@ -746,20 +759,20 @@ void plot_pixel(int x, int y, short int line_color) {
     *(short int *)(pixel_buffer_start + (y << 10) + (x << 1)) = line_color;
 }
 
+// displays current score
 void HEX_PS2(char b1, char b2) {
 	volatile int * HEX3_HEX0_ptr = (int *)HEX3_HEX0_BASE;
-	volatile int * HEX5_HEX4_ptr = (int *)HEX5_HEX4_BASE;
 	/* SEVEN_SEGMENT_DECODE_TABLE gives the on/off settings for all segments in
 	* a single 7-seg display in the DE1-SoC Computer, for the hex digits 0 - F
 	*/
 	unsigned char seven_seg_decode_table[] = {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07,
-						  0x7F, 0x67, 0x77, 0x7C, 0x39, 0x5E, 0x79, 0x71};
+											  0x7F, 0x67, 0x77, 0x7C, 0x39, 0x5E, 0x79, 0x71};
 	unsigned char hex_segs[] = {0, 0, 0, 0, 0, 0, 0, 0};
 	unsigned int shift_buffer, nibble;
 	unsigned char code;
 	
-	shift_buffer = (b1 << 8) | b2;
-	for (int i = 0; i < 6; ++i) {
+	shift_buffer =  (b1 << 4) | b2;
+	for (int i = 0; i < 4; ++i) {
 		nibble = shift_buffer & 0x0000000F; // character is in rightmost nibble
 		code = seven_seg_decode_table[nibble];
 		hex_segs[i] = code;
@@ -767,5 +780,27 @@ void HEX_PS2(char b1, char b2) {
 	}
 	/* drive the hex displays */
 	*(HEX3_HEX0_ptr) = *(int *)(hex_segs);
+}
+
+// dislays highscore
+void HEX_PS2_1(char b1, char b2) {
+	volatile int * HEX5_HEX4_ptr = (int *)HEX5_HEX4_BASE;
+	/* SEVEN_SEGMENT_DECODE_TABLE gives the on/off settings for all segments in
+	* a single 7-seg display in the DE1-SoC Computer, for the hex digits 0 - F
+	*/
+	unsigned char seven_seg_decode_table[] = {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07,
+											  0x7F, 0x67, 0x77, 0x7C, 0x39, 0x5E, 0x79, 0x71};
+	unsigned char hex_segs[] = {0, 0, 0, 0, 0, 0, 0, 0};
+	unsigned int shift_buffer, nibble;
+	unsigned char code;
+	
+	shift_buffer =  (b1 << 4) | b2;
+	for (int i = 4; i < 6; ++i) {
+		nibble = shift_buffer & 0x0000000F; // character is in rightmost nibble
+		code = seven_seg_decode_table[nibble];
+		hex_segs[i] = code;
+		shift_buffer = shift_buffer >> 4;
+	}
+	/* drive the hex displays */
 	*(HEX5_HEX4_ptr) = *(int *)(hex_segs + 4);
 }
