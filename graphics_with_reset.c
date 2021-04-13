@@ -105,6 +105,7 @@ typedef struct MemoryGame {
     bool gameOver;
     int level;
     int highscore;
+	int score;
 
 } MemGame;
 
@@ -127,6 +128,7 @@ void initializeGame(MemGame *game);
 void wait_for_vsync();
 void shuffle(int *array, size_t n);
 
+void HEX_PS2(char b1, char b2);
 
 // important global variables
 int g_width;
@@ -196,12 +198,17 @@ int main(void) {
 		
 			
 		int PS2_data, RVALID;
+		char a, b;
 		
 		while(!game.gameOver){
 			// if the game state has changed, then draw the game again on the screen
 			if(game.stateChanged){
 				drawCards(&game);
 				game.stateChanged = false;
+				//game.highscore += 1;
+				b = (char) game.score%10;
+				a = (char) game.score/10;
+				HEX_PS2(a, b);
 			}
 		
 		
@@ -229,7 +236,7 @@ int main(void) {
 			if(flippedCard != -1 ){
 				// change the state of the game (and therefore redraw)
 				game.stateChanged = true;
-
+				game.score += 1;
 				// if one card is pressed already and the new card flipped isn't flipped already
 				if(game.pressedCard != -1 && !game.cards[flippedCard].isFlipped){
 					// flip over the new card temporarily and wait a couple of seconds
@@ -294,6 +301,7 @@ void initializeGame(MemGame *game){
 	game->stateChanged = true;
 	game->gameOver = false;
 	game->highscore = 0;
+	game->score = 0;
 	game->numFinished = 0;
 	
 	for(int i = 0; i < NUM_ROWS; i++){
@@ -736,4 +744,28 @@ void swap(int* x, int* y){
 
 void plot_pixel(int x, int y, short int line_color) {
     *(short int *)(pixel_buffer_start + (y << 10) + (x << 1)) = line_color;
+}
+
+void HEX_PS2(char b1, char b2) {
+	volatile int * HEX3_HEX0_ptr = (int *)HEX3_HEX0_BASE;
+	volatile int * HEX5_HEX4_ptr = (int *)HEX5_HEX4_BASE;
+	/* SEVEN_SEGMENT_DECODE_TABLE gives the on/off settings for all segments in
+	* a single 7-seg display in the DE1-SoC Computer, for the hex digits 0 - F
+	*/
+	unsigned char seven_seg_decode_table[] = {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07,
+						  0x7F, 0x67, 0x77, 0x7C, 0x39, 0x5E, 0x79, 0x71};
+	unsigned char hex_segs[] = {0, 0, 0, 0, 0, 0, 0, 0};
+	unsigned int shift_buffer, nibble;
+	unsigned char code;
+	
+	shift_buffer = (b1 << 8) | b2;
+	for (int i = 0; i < 6; ++i) {
+		nibble = shift_buffer & 0x0000000F; // character is in rightmost nibble
+		code = seven_seg_decode_table[nibble];
+		hex_segs[i] = code;
+		shift_buffer = shift_buffer >> 4;
+	}
+	/* drive the hex displays */
+	*(HEX3_HEX0_ptr) = *(int *)(hex_segs);
+	*(HEX5_HEX4_ptr) = *(int *)(hex_segs + 4);
 }
