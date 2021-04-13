@@ -91,9 +91,6 @@ typedef struct Cards {
     int y_top;
     int x_left;
     bool isFlipped;
-	
-	bool wasFlipped; 
-	
     int value;
 
 } Card;
@@ -140,32 +137,18 @@ int level = -1;
 int easy = 1;
 int medium = 2;
 int hard = 3;
-int reset = 4;
+int v_hard = 4;
 
 int main(void) {
+	
 	while(true){
 		volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 		/* Read location of the pixel buffer from the pixel buffer controller */
 		pixel_buffer_start = *pixel_ctrl_ptr;
 
-		/* Declare volatile pointers to I/O registers (volatile means that IO load
-		and store instructions will be used to access these pointer locations,
-		instead of regular memory loads and stores) */
-		//volatile int * PS2_ptr = (int *)PS2_BASE;
 		*(PS2_ptr) = 0xFF; // reset
 		
-		/* set front pixel buffer to start of FPGA On-chip memory */
-		//*(pixel_ctrl_ptr + 1) = 0xC8000000; // first store the address in the back buffer
-
-		/* now, swap the front/back buffers, to set the front buffer location */
-		//wait_for_vsync();
-		/* initialize a pointer to the pixel buffer, used by drawing functions */
-		//pixel_buffer_start = *pixel_ctrl_ptr;
-		clear_screen(); // pixel_buffer_start points to the pixel buffer
-		/* set back pixel buffer to start of SDRAM memory */
-		//*(pixel_ctrl_ptr + 1) = 0xC0000000;
-		//pixel_buffer_start = *(pixel_ctrl_ptr + 1); // we draw on the back buffer
-
+		clear_screen(); // clear screen
 
 		// initialize the game
 		MemGame game;
@@ -175,28 +158,34 @@ int main(void) {
 		while (choice == false) {
 			if (*KEY_ptr == 0b0001) { 		// press KEY[0] = easy
 				game.level = easy;
-				NUM_ROWS = 2;
+				NUM_ROWS = 1;
 				NUM_COLS = 4;	
 				choice = true;
 			}  
-			else if (*KEY_ptr == 0b0010) { 	// press KEY[1] = medium
+			else if (*KEY_ptr == 0b0010) { 		// press KEY[1] = medium
 				game.level = medium;
-				NUM_ROWS = 3;
+				NUM_ROWS = 2;
 				NUM_COLS = 4;	
 				choice = true;
 			} 
-			else if (*KEY_ptr == 0b0100){ 	// press KEY[2] = hard
+			else if (*KEY_ptr == 0b0100){ 		// press KEY[2] = hard
 				game.level = hard;
+				NUM_ROWS = 3;
+				NUM_COLS = 4;		
+				choice = true;
+			}
+			else if(*KEY_ptr == 0b1000){ 		// press KEY[3] = very hard
+				game.level = v_hard;
 				NUM_ROWS = 4;
 				NUM_COLS = 4;		
 				choice = true;
-			}else if(*KEY_ptr == 0b1000){ // press KEY[3] = custom
-
 			}
 			
 		}
+		
 		// get the number of cards
 		NUM_CARDS = NUM_ROWS*NUM_COLS;
+		
 		*KEY_ptr = 0xFF;	// reset KEYs
 		
 		// get the height and width of the cards
@@ -211,11 +200,8 @@ int main(void) {
 		while(!game.gameOver){
 			// if the game state has changed, then draw the game again on the screen
 			if(game.stateChanged){
-				//clear_screen();
 				drawCards(&game);
 				game.stateChanged = false;
-				//wait_for_vsync();
-				//pixel_buffer_start = *(pixel_ctrl_ptr + 1); // new back buffer
 			}
 		
 		
@@ -250,6 +236,7 @@ int main(void) {
 					game.cards[flippedCard].isFlipped = true;
 					drawCards(&game);
 					for(int i = 0; i < 1000000; i++){}
+					
 					// Updates the state of the cards and the game
 					cardsMatch(&game, flippedCard);
 					
@@ -269,14 +256,12 @@ int main(void) {
 				}
 			}
 		}
-	
-	
-
 	}	
 	return 0;
 }
 
 bool cardsMatch(MemGame *game, int secondCardId){
+	
 	// initialize important variables
 	Card *firstCard, *secondCard;
 	firstCard = &game->cards[game->pressedCard];
@@ -289,20 +274,18 @@ bool cardsMatch(MemGame *game, int secondCardId){
 		firstCard->isFlipped = true;
 		game->numFinished++;
 	}
+	
 	// otherwise flip over both to the back
 	else{
 		firstCard->isFlipped = false;
 		secondCard->isFlipped = false;
-		firstCard->wasFlipped = true; 
-		secondCard->wasFlipped = true; 
 	}
 	return matched;
 }
 
 void initializeGame(MemGame *game){
 		
-
-	int card_graphic[16] = {0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 4, 5, 6, 7, 6, 7};
+	int card_graphic[16] = {0, 1, 0, 1, 2, 3, 2, 3, 4, 5, 4, 5, 6, 7, 6, 7};
 	shuffle(&card_graphic, sizeof(int));
 
 
@@ -325,8 +308,6 @@ void initializeGame(MemGame *game){
 		game->cards[i].value = card_graphic[i];
 		game->cards[i].isFlipped = false;
 		
-		game->cards[i].wasFlipped = false; //-------------
-
 		// draw outlines of the cards
 		draw_line(game->cards[i].x_left, game->cards[i].y_top, game->cards[i].x_left+g_width, game->cards[i].y_top, CYAN);   			// top line
 		draw_line(game->cards[i].x_left, game->cards[i].y_top+g_height, game->cards[i].x_left+g_width, game->cards[i].y_top+g_height, CYAN);  	// bot line
@@ -334,8 +315,8 @@ void initializeGame(MemGame *game){
 		draw_line(game->cards[i].x_left+g_width, game->cards[i].y_top, game->cards[i].x_left+g_width, game->cards[i].y_top+g_height, CYAN);   	// right line			
 	}
 }
-void drawCards(MemGame *game){
 
+void drawCards(MemGame *game){
 
 	for(int i = 0; i < NUM_CARDS; i++){
 		 
@@ -348,13 +329,13 @@ void drawCards(MemGame *game){
 			// draw over the graphic with black, draw the front and change wasFlipped to false
 			draw_graphic(game->cards[i].value, game->cards[i].x_left, game->cards[i].y_top, 1);
 			draw_front(i, game->cards[i].x_left, game->cards[i].y_top, 0);
-			game->cards[i].wasFlipped = false;
 		}
 	}
 			
 }
 
 void draw_graphic (int graphic, int x_left, int y_top, int clear){
+	
 	short int line_color;
 	short int y_center = y_top + (g_height/2);
 	short int y_bot = y_top + g_height;
@@ -386,7 +367,7 @@ void draw_graphic (int graphic, int x_left, int y_top, int clear){
 		draw_line(x_left+15, y_top+10, x_right-15, y_top+10, line_color);  	// top line
 		draw_line(x_left+10, y_bot-10, x_right-10, y_bot-10, line_color);  	// bot line
 		draw_line(x_left+15, y_top+10, x_left+10, y_bot-10, line_color);   	// left line
-		draw_line(x_right-10, y_bot-10, x_right-15, y_top+10, line_color);  // right line
+		draw_line(x_right-10, y_bot-10, x_right-15, y_top+10, line_color);  	// right line
 	}
 	
 	//graphic 3 - rhombus
@@ -621,6 +602,7 @@ void draw_front (int card, int x_left,int y_top, int clear){
 }
 
 void clear_screen() {
+	
 	for (int x = 0; x < RESOLUTION_X; x++) {
 		for (int y = 0; y < RESOLUTION_Y; y++) {
 			plot_pixel(x, y, 0x0000); 	// colour all pixels black
@@ -629,7 +611,8 @@ void clear_screen() {
 }
 
 void shuffle(int *array, size_t n) {    
-    time_t t;
+    
+	time_t t;
     srand((unsigned) time(&t));
 
 
@@ -643,6 +626,7 @@ void shuffle(int *array, size_t n) {
         }
     }
 }
+
 void getKey(int keyID, int *keyPressed){
 	
 	if (keyID == 0x45){ 		// check if key is 0
@@ -699,6 +683,7 @@ void getKey(int keyID, int *keyPressed){
 }
 
 void draw_line(int x0, int y0, int x1, int y1, short int colour) {
+	
 	bool is_steep = abs(y1 - y0) > abs(x1 - x0);
 	
 	if (is_steep) {
@@ -743,12 +728,12 @@ void draw_line(int x0, int y0, int x1, int y1, short int colour) {
 }
 
 void swap(int* x, int* y){
+	
 	int temp = *x;
 	*x = *y;
 	*y = temp;
 }
 
-void plot_pixel(int x, int y, short int line_color)
-{
+void plot_pixel(int x, int y, short int line_color) {
     *(short int *)(pixel_buffer_start + (y << 10) + (x << 1)) = line_color;
 }
