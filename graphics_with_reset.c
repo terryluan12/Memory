@@ -1,3 +1,4 @@
+
 /* This files provides address values that exist in the system */
 #define BOARD                 "DE1-SoC"/* Memory */
 #define DDR_BASE              0x00000000
@@ -202,10 +203,10 @@ int main(void) {
 		initializeGame(&game);
 		char a, b;
 		
-		b = (char) game.highscore%10;
-		a = (char) game.highscore/10;
-		HEX_PS2_1(a, b);
-			
+		if (firstgame == true){
+			HEX_PS2_1(0, 0);
+		}
+		
 		int PS2_data, RVALID;
 		
 		while(!game.gameOver){
@@ -224,6 +225,7 @@ int main(void) {
 			char keyID = 0;
 			int flippedCard = -1;
 			RVALID = PS2_data & 0x8000;
+			
 			// if the input is valid
 			if(RVALID){	
 				// get the keyID of the pressed keys
@@ -232,7 +234,6 @@ int main(void) {
 				getKey(keyID, &flippedCard);
 				// reset the keyboard
 				*(PS2_ptr) = 0xFF;
-				
 				//while it's still valid, write to the register
 				while (PS2_data & 0x8000) {
 					PS2_data = *PS2_ptr;
@@ -260,8 +261,11 @@ int main(void) {
 					// if the number of pairs finished is equal to total number of pairs, it's game over
 					if(game.numFinished == NUM_CARDS/2){
 						game.gameOver = true;
-						if (game.score - 1 > game.highscore){
-							game.highscore = game.score - 1;
+						if (game.score > game.highscore){
+							game.highscore = game.score;
+							b = (char) game.highscore%10;
+							a = (char) game.highscore/10;
+							HEX_PS2_1(a, b);
 						}
 						firstgame = false;
 					}
