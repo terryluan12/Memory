@@ -127,7 +127,7 @@ bool cardsMatch(MemGame *game, int secondCardId);
 void drawCards(MemGame *game);
 void initializeGame(MemGame *game);
 void wait_for_vsync();
-void shuffle(int *array, size_t n);
+void shuffle(int *array, int n);
 
 void HEX_PS2(char b1, char b2);
 void HEX_PS2_1(char b1, char b2);
@@ -146,6 +146,8 @@ int v_hard = 4;
 bool firstgame = true;
 
 int main(void) {
+	// seed the random number generator once
+    srand((unsigned)time(NULL));
 	
 	while(true){
 		volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
@@ -635,20 +637,12 @@ void clear_screen() {
 	}
 }
 
-void shuffle(int *array, size_t n) {    
-    
-	time_t t;
-    srand((unsigned) time(&t));
-
-
-    if (n > 1) {
-        size_t i;
-        for (i = n - 1; i > 0; i--) {
-            size_t j = (unsigned int) (rand() / (RAND_MAX) *(i+1));
-            int t = array[j];
-            array[j] = array[i];
-            array[i] = t;
-        }
+void shuffle(int *array, int n) {
+    for (int i = 0; i < n - 1; i++) {
+        size_t j = i + rand() / (RAND_MAX / (n - i) + 1);
+        int t = array[j];
+        array[j] = array[i];
+        array[i] = t;
     }
 }
 
