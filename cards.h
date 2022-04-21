@@ -15,12 +15,13 @@ typedef struct Cards {
 
 typedef struct MemoryGame {
 
-    Card cards[NUM_CARDS];
+    Card cards[16];
     int pressedCard;
     int numFinished;
     bool stateChanged;
     bool gameOver;
     int level;
     int highscore;
+    int score;
 
 } MemGame;

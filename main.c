@@ -1,8 +1,9 @@
-#include "global.h"
+
 #include <stdlib.h>
 #include <stdbool.h>
 #include <time.h>
-#include "cards.h"
+#include "global.h" // if using CPUlator, copy global.h here
+#include "cards.h" // if using CPUlator, copy cards.h here
 
 int NUM_ROWS;
 int NUM_COLS;
